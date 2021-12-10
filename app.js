@@ -5,6 +5,7 @@ const fileUpload = require("express-fileupload");
 const util = require("util");
 const uuid = require("uuid");
 const mongoose = require("mongoose");
+const session = require("express-session");
 
 const app = express();
 
@@ -37,16 +38,59 @@ const Result = mongoose.model("Result", {
   qrSrc: String,
 });
 
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "strict",
+    path: "/",
+  },
+};
+
+app.use(session(sessionConfig));
+
 app.use(express.static("public"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
 app.set("view engine", "ejs");
 app.set("views", "views");
 
-app.get("/", (req, res) => {
+const isAuthenticated = (req, res, next) => {
+  console.log(req.session);
+  if (
+    req.session.user &&
+    req.session.user.username === process.env.ADMIN_USERNAME
+  ) {
+    return next();
+  }
+  res.redirect("/login");
+};
+
+app.get("/login", (req, res) => {
+  res.render("login");
+});
+app.post("/login", (req, res) => {
+  if (
+    req.body.username === process.env.ADMIN_USERNAME &&
+    req.body.password === process.env.ADMIN_PASSWORD
+  ) {
+    req.session.user = {
+      username: req.body.username,
+    };
+    res.redirect("/");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+app.get("/", isAuthenticated, (req, res) => {
   res.render("new");
 });
-app.post("/new", (req, res) => {
+app.post("/new", isAuthenticated, (req, res) => {
   const run = async () => {
     const { image } = req.files;
     const moveFile = util.promisify(image.mv);
