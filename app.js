@@ -62,9 +62,10 @@ app.post("/new", (req, res) => {
     req.body.qrSrc = qrFileName;
     req.body.id = userId;
 
-    await new Result(req.body).save();
+    const result = await new Result(req.body).save();
+    result.APP_URL = process.env.APP_URL;
 
-    res.render("template", req.body);
+    res.render("template", result);
   };
   run();
   //   res.redirect("/");
@@ -73,6 +74,8 @@ app.post("/new", (req, res) => {
 app.get("/results/:id", (req, res) => {
   const run = async () => {
     const result = await Result.findOne({ id: req.params.id });
+    result.APP_URL = process.env.APP_URL;
+
     res.render("template", result);
   };
   run();
